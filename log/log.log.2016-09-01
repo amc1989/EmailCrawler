@@ -1,0 +1,27 @@
+09:00:08,577  INFO EmailCrawler:185- 开始访问页面！！！！！！！！！！！！！！
+09:02:45,897  INFO EmailCrawler:179- 开始访问页面！！！！！！！！！！！！！！
+09:03:52,400  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:03:53,447  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:04:46,725  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:05:18,801  INFO EmailCrawler:188- 开始访问页面！！！！！！！！！！！！！！
+09:05:34,973  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:09:04,798  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:09:29,374  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:09:29,681 ERROR EmailCrawler:203- 出错java.lang.IllegalStateException: Target host is null
+09:09:43,006  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:11:05,790  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:14:48,872  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:14:51,780 ERROR EmailCrawler:203- 出错java.net.UnknownHostException: http
+09:15:02,684  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:15:42,668  INFO EmailCrawler:186- 开始访问页面！！！！！！！！！！！！！！
+09:18:13,394  INFO EmailCrawler:189- 开始访问页面！！！！！！！！！！！！！！
+09:38:58,542  INFO EmailCrawler:201- 开始访问页面！！！！！！！！！！！！！！
+11:50:57,222  INFO EmailCrawler:214- 开始访问页面！！！！！！！！！！！！！！
+11:52:11,237  INFO EmailCrawler:206- 开始访问页面！！！！！！！！！！！！！！
+11:53:02,783  INFO EmailCrawler:205- 开始访问页面！！！！！！！！！！！！！！
+14:32:04,542  INFO EmailCrawler:203- 开始访问页面！！！！！！！！！！！！！！
+14:33:18,887  INFO EmailCrawler:203- 开始访问页面！！！！！！！！！！！！！！
+14:51:17,375  INFO EmailCrawler:210- 开始访问页面！！！！！！！！！！！！！！
+15:02:15,036  INFO EmailCrawler:210- 开始访问页面！！！！！！！！！！！！！！
+15:03:37,089  INFO EmailCrawler:210- 开始访问页面！！！！！！！！！！！！！！
+15:04:22,814  INFO EmailCrawler:210- 开始访问页面！！！！！！！！！！！！！！
