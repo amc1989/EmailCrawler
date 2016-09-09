@@ -16,12 +16,13 @@ public class AppTest {
 		for(int i=0;i<ssStrings.length-1;i++){
 		sBuilder.append(ssStrings[i]).append("/");
 		}
+		String hreix1 ="http://www.baofeng.com/micv/132/micv-131632	-vid-2450369.html".replaceAll("\\s+", ""); 
 		String prifx = sBuilder.toString();
-		System.out.println(prifx);
-		for (int i = 2; i <= Integer.parseInt("30"); i++) {
+		System.out.println(hreix1);
+		/*for (int i = 2; i <= Integer.parseInt("30"); i++) {
 			System.out.println(prifx+i+"/");
 			
 			
-		}
+		}*/
 	}
 }

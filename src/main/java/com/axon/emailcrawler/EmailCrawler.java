@@ -1,14 +1,18 @@
 package com.axon.emailcrawler;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.util.ArrayList;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,26 +29,68 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
-import com.axon.emailcrawler.bean.infoBean;
-
+@SuppressWarnings("deprecation")
 public class EmailCrawler {
 	private static Log logger = LogFactory.getLog(EmailCrawler.class);
-	private final static int DEFAULT_VALUE = 2 << 29;
+	private final static int DEFAULT_VALUE = 2<<29;
 	private BitSet bs = new BitSet(DEFAULT_VALUE);
 	private int[] seeds = { 3, 11, 19, 29, 37, 43, 61, 83 };
 	private BloomFiler[] bfFuncs = new BloomFiler[seeds.length];
-	private HashSet<String> gongSiSet = new HashSet<String>();
-	private HashSet<String> jobsSet = new HashSet<String>();
+	private HashSet<String> gongSiSet = null;
+	private HashSet<String> jobsSet = null;
 
 	public EmailCrawler() {
-		// init();
+		init();
+		
 	}
 
+	// 已经入库的biz号把他们映射到bitset中
+	public void init() {
+		logger.info("开始获取bloomfilter的位数据");
+		setBitset();
+		BufferedReader bufr = null;
+		FileReader fr = null;
+		try {
+			fr = new FileReader(new File("2.txt"));
+			bufr = new BufferedReader(fr);
+			String line = null;
+			while ((line = bufr.readLine()) != null) {
+				add(line);
+			}
+		} catch (Exception e) {
+			logger.error("出错", e);
+		} finally {
+			try {
+				bufr.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		try {
+			fr = new FileReader(new File("3.txt"));
+			bufr = new BufferedReader(fr);
+			String line = null;
+			while ((line = bufr.readLine()) != null) {
+				add(line);
+			}
+		} catch (Exception e) {
+			logger.error("出错", e);
+		} finally {
+			try {
+				bufr.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	
 	public static void main(String[] args) {
 		EmailCrawler emailCrawler = new EmailCrawler();
-		emailCrawler.parseGongSiUrl("http://www.lagou.com/gongsi/10189.html");//
-		// getSubUrl("http://www.lagou.com/zhaopin/Java/2/");//getUrl2("http://www.lagou.com/zhaopin/Java/2/");//
-		// getUrl2("http://www.lagou.com/zhaopin/zongcaifuzongcai/");
+				emailCrawler.accessUrl();
+			
+		
 	}
 
 	/**
@@ -62,15 +108,18 @@ public class EmailCrawler {
 		try {
 			stack1 = getUrl1("http://www.lagou.com/?utm_source=m_cf_cpt_baidu_pc");
 			while (!stack1.isEmpty()) {
+				gongSiSet = new HashSet<String>();
+				jobsSet = new HashSet<String>();
 				String url = stack1.pop();
 				if (url.equals("www.lagou.com/zhaopin/"))
 					continue;
 				System.out.println(url);
+				if(isExist(url)) continue;
 				getUrl2("http://" + url);
-
+				parseGongSiUrl(gongSiSet);
+				writeToFileRoot(url);
+			
 			}
-			// parseGongSiUrl(gongSiSet);
-
 		} catch (Exception e) {
 			logger.error("fangwen", e);
 		}
@@ -78,46 +127,143 @@ public class EmailCrawler {
 		// parserHtml(set);
 	}
 
-	// 访问拉钩上公司的主页面
-	private void parseGongSiUrl(String url) {
-		TreeMap<String, String> resultMap = new TreeMap<String, String>();
-		// for(String url:gongSiSet){
-		Document doc = Jsoup.parse(getHtmlByUrl(url));
-		List<Element> elementList = doc.getElementsByClass("hovertips");
-		String email = null;
-		for (Element element : elementList) {
-			String gongsiURl = element.attr("href");
-			String gongSiName = element.attr("title");
-			System.out
-					.println(gongsiURl + "---------------------" + gongSiName);
-			email = parseSpecificGongSiUrl(gongsiURl);
-			if(null!=email) return;
-			System.out.println(email);
-			// writeToFile( gongSiName, email);
+	private void writeToFileRoot(String url) {
+		BufferedWriter bufw = null;
+		FileWriter fw = null;
+		File file = new File("3.txt");
+		try {
+			fw = new FileWriter(file, true);
+			bufw = new BufferedWriter(fw);
+			bufw.write(url);
+			bufw.newLine();
+			bufw.flush();
+
+		} catch (Exception e) {
+			logger.info("写入文件出错", e);
+		} finally {
+			try {
+				bufw.close();
+			} catch (IOException e) {
+				logger.error("关闭出错", e);
+			}
 		}
-		// }
+
+		
+	}
+
+	// 访问拉钩上公司的主页面
+	private void parseGongSiUrl(Set<String> gongSiSet) {
+		for (String url : gongSiSet) {
+			if (isExist(url)) {
+				continue;
+			}
+			System.out.println("开始爬具体的公司");
+			writeFanToFile(url);
+			String htmlString = getHtmlByUrl(url);
+			if (null == htmlString)
+				return;
+			Document doc = Jsoup.parse(htmlString);
+			List<Element> elementList = doc.getElementsByClass("hovertips");
+			String email = null;
+			for (Element element : elementList) {
+				String gongsiURl = element.attr("href");
+				String gongSiName = element.attr("title");
+				if (gongsiURl.contains("pincai360")||gongsiURl.contains("maoyan")
+						|| !gongsiURl.contains("www"))
+					continue;
+				System.out.println(gongsiURl + "---------------------"
+						+ gongSiName);
+				email = parseSpecificGongSiUrl(gongsiURl);
+				if (null != email) {
+					System.out.println(email);
+					writeToFile(gongSiName, email);
+					break;
+				}
+			}
+		}
+
+	}
+
+	private void writeFanToFile(String url) {
+		BufferedWriter bufw = null;
+		FileWriter fw = null;
+		File file = new File("2.txt");
+		try {
+			fw = new FileWriter(file, true);
+			bufw = new BufferedWriter(fw);
+			bufw.write(url);
+			bufw.newLine();
+			bufw.flush();
+
+		} catch (Exception e) {
+			logger.info("写入文件出错", e);
+		} finally {
+			try {
+				bufw.close();
+			} catch (IOException e) {
+				logger.error("关闭出错", e);
+			}
+		}
 
 	}
 
 	private void writeToFile(String gongSiName, String email) {
-		File file;
+		BufferedWriter bufw = null;
+		FileWriter fw = null;
+		File file = new File("1.txt");
+		try {
+			fw = new FileWriter(file, true);
+			bufw = new BufferedWriter(fw);
+			bufw.write(gongSiName + ":" + email);
+			bufw.newLine();
+			bufw.flush();
+
+		} catch (Exception e) {
+			logger.info("写入文件出错", e);
+		} finally {
+			try {
+				bufw.close();
+			} catch (IOException e) {
+				logger.error("关闭出错", e);
+			}
+		}
 
 	}
-
+   //每个企业官网每个子页面的解析
 	private String parseSpecificGongSiUrl(String gongsiURl) {
-		Document doc = Jsoup.parse(getHtmlByUrl(gongsiURl));
-		Set<String> set = new HashSet<String>();
+		String htmlString = getHtmlByUrl(gongsiURl);
+		if (null == htmlString)
+			return null;
+		Document doc = Jsoup.parse(htmlString);
 		List<Element> list = doc.select("a[href]");
 		String email = null;
 		for (Element element : list) {
 			String hreix = element.attr("href");
-			if (hreix.startsWith("www") || hreix.startsWith("http")
-					|| hreix.startsWith("javascript"))
+			if (hreix.startsWith("www") || hreix.startsWith("javascript"))
 				continue;
-			email = getEmail(gongsiURl + element.attr("href"));
+			if (hreix.contains("http")) {
+				if ((hreix.equals("http://")||hreix.contains("###")||hreix.contains("play") || hreix.contains("micv")
+						|| hreix.contains("edu") || hreix.contains("tv")
+						|| hreix.contains("movie") || hreix.contains("car")
+						|| hreix.contains("enc") || hreix.contains("comic")
+						|| hreix.contains("{"))) {
+					continue;
+				}
+				
+				email = getEmail(hreix.trim());
+			} else {
+				if ((hreix.equals("http://")||hreix.contains("###")||hreix.contains("play") || hreix.contains("micv")
+						|| hreix.contains("edu") || hreix.contains("tv")
+						|| hreix.contains("movie") || hreix.contains("car")
+						|| hreix.contains("enc") || hreix.contains("comic")
+						|| hreix.contains("{"))) {
+					continue;
+				}
+				email = getEmail(gongsiURl + element.attr("href").trim());
+			}
 			if (null == email) {
 				continue;
-			}else {
+			} else {
 				break;
 			}
 		}
@@ -142,16 +288,30 @@ public class EmailCrawler {
 					html = EntityUtils.toString(entity);// 获得html源代码
 					Document doc = Jsoup.parse(html);
 					for (Element element : doc.getElementsByTag("div")) {
-						/*
-						 * System.out.println("element: "); System.out.println(
-						 * element.toString()); System.out.println(
-						 * "--------------------------------------------------------------------"
-						 * );
-						 */
-						if (element.toString().contains("@")) {
-							eamil = getRealEmail(element.toString());
-							break;
+						String str = element.toString();
+						if (str.contains("@")) {
+							if (str.length() > 1000) {
+								List<String> list = Arrays.asList(str
+										.split("\\s+"));
+								for (String line : list) {
+									System.out.println("list长度  :"
+											+ list.size());
+									if (line.contains("@")
+											&& !line.startsWith("src")) {
+										System.out.println(line);
+										eamil = getRealEmail(line);
+									}
+									if (null != eamil)
+										break;
+								}
+							} else {
+								eamil = getRealEmail(element.toString());
+								if (null != eamil)
+									break;
+							}
 						}
+						if (null != eamil)
+							break;
 					}
 				}
 			} else {
@@ -171,7 +331,6 @@ public class EmailCrawler {
 			String check = "([a-z0-9A-Z]+[-|_|\\.]?)+[a-z0-9A-Z]@([a-z0-9A-Z]+(-[a-z0-9A-Z]+)?\\.)+[a-zA-Z]{2,}";
 			Pattern regex = Pattern.compile(check);
 			Matcher matcher = regex.matcher(html);
-
 			if (matcher.find()) {
 				eamil = matcher.group();
 			}
@@ -190,7 +349,10 @@ public class EmailCrawler {
 	 * @return
 	 */
 	public Stack<String> getUrl1(String url) {
-		Document doc = Jsoup.parse(getHtmlByUrl(url));
+		String htmlString = getHtmlByUrl(url);
+		if (null == htmlString)
+			return null;
+		Document doc = Jsoup.parse(htmlString);
 		Stack<String> stack = new Stack<String>();
 		List<Element> list = doc.select("a[href]");
 		for (Element element : list) {
@@ -199,7 +361,7 @@ public class EmailCrawler {
 			if (urlHref.contains("www.lagou.com/zhaopin/")
 					&& !urlHref.equals("//www.lagou.com/zhaopin/")) {
 				stack.add((String) urlHref.subSequence(2, urlHref.length()));
-				System.out.println(urlHref.subSequence(2, urlHref.length()));
+				// System.out.println(urlHref.subSequence(2, urlHref.length()));
 			}
 		}
 		return stack;
@@ -207,11 +369,14 @@ public class EmailCrawler {
 	}
 
 	public void getUrl2(String url) {
-		Document doc = Jsoup.parse(getHtmlByUrl(url));
+		
+		String htmlString = getHtmlByUrl(url);
+		if (null == htmlString)
+			return;
+		Document doc = Jsoup.parse(htmlString);
 		Set<String> set = new HashSet<String>();
 
 		List<Element> list = doc.select("a[href]");
-		int count = 0;
 		HashSet<String> yeMianSet = new HashSet<String>();
 		TreeMap<Integer, String> bianHaoTM = new TreeMap<Integer, String>();
 		for (Element element : list) {
@@ -260,10 +425,11 @@ public class EmailCrawler {
 	public void getSubUrl(Set<String> yeMianSet) {
 		Set<String> set = new HashSet<String>();
 		for (String subUrl : yeMianSet) {
-			Document doc = Jsoup.parse(getHtmlByUrl(subUrl));
+			String htmlString = getHtmlByUrl(subUrl);
+			if (null == htmlString)
+				return;
+			Document doc = Jsoup.parse(htmlString);
 			List<Element> list = doc.select("a[href]");
-			int count = 0;
-			TreeMap<Integer, String> bianHaoTM = new TreeMap<Integer, String>();
 			for (Element element : list) {
 				String urlHref = element.attr("href");
 				// System.out.println(urlHref);
@@ -293,13 +459,14 @@ public class EmailCrawler {
 	public void parseJobsUrl(Set<String> jobsSet) {
 		Set<String> set = new HashSet<String>();
 		for (String subUrl : jobsSet) {
-			Document doc = Jsoup.parse(getHtmlByUrl(subUrl));
+			String htmlString = getHtmlByUrl(subUrl);
+			if (null == htmlString)
+				return;
+			Document doc = Jsoup.parse(htmlString);
 			List<Element> list = doc.select("a[href]");
-			int count = 0;
-			TreeMap<Integer, String> bianHaoTM = new TreeMap<Integer, String>();
 			for (Element element : list) {
 				String urlHref = element.attr("href");
-				System.out.println(urlHref);
+				// System.out.println(urlHref);
 				if (urlHref.startsWith("//www.lagou.com/")) {
 					set.add(urlHref);
 				}
@@ -333,7 +500,6 @@ public class EmailCrawler {
 				HttpEntity entity = responce.getEntity();
 				if (entity != null) {
 					html = EntityUtils.toString(entity);// 获得html源代码
-
 				}
 			}
 		} catch (Exception e) {
